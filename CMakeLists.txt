@@ -17,6 +17,9 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 # Include utilities such as `check_submodule_not_empty`.
 include(utilities)
 
+# Detect Linux distribution so subdirectories can use OE_LINUX_DISTRO.
+detect_linux_distro()
+
 # Read version from "VERSION" file.
 file(STRINGS "VERSION" OE_VERSION_WITH_V)
 string(REGEX REPLACE "^v" "" OE_VERSION ${OE_VERSION_WITH_V})
@@ -138,14 +141,14 @@ if (IS_DIRECTORY "${PROJECT_SOURCE_DIR}/.git")
   execute_process(
     COMMAND git rev-parse HEAD
     OUTPUT_VARIABLE GIT_COMMIT
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR} ERROR_QUIET
-                      OUTPUT_STRIP_TRAILING_WHITESPACE)
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+    ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
 
   execute_process(
     COMMAND git symbolic-ref HEAD
     OUTPUT_VARIABLE GIT_BRANCH
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR} ERROR_QUIET
-                      OUTPUT_STRIP_TRAILING_WHITESPACE)
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+    ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
 
   # Install Git pre-commit hook
   file(COPY scripts/pre-commit scripts/commit-msg
@@ -271,8 +274,9 @@ if (WIN32)
   find_program(GIT git)
   get_filename_component(GIT_DIR ${GIT} DIRECTORY)
   find_program(
-    OE_BASH bash PATHS "C:/Program Files/Git/bin" "${GIT_DIR}/../bin"
-                       NO_DEFAULT_PATH) # Do not find WSL bash.
+    OE_BASH bash
+    PATHS "C:/Program Files/Git/bin" "${GIT_DIR}/../bin"
+    NO_DEFAULT_PATH) # Do not find WSL bash.
 
   if (NOT OE_BASH)
     message(FATAL_ERROR "Git Bash not found!")
@@ -284,7 +288,8 @@ if (WIN32)
     find_program(
       OE_PERL perl
       PATHS "C:/Program Files/Git/bin" "C:/Program Files/Git/usr/bin"
-            "${GIT_DIR}/../usr/bin" NO_DEFAULT_PATH)
+            "${GIT_DIR}/../usr/bin"
+      NO_DEFAULT_PATH)
     if (NOT OE_PERL)
       message(FATAL_ERROR "Perl not found!")
     endif ()
@@ -294,7 +299,8 @@ if (WIN32)
     find_program(
       OE_DOS2UNIX dos2unix
       PATHS "C:/Program Files/Git/bin" "C:/Program Files/Git/usr/bin"
-            "${GIT_DIR}/../usr/bin" NO_DEFAULT_PATH)
+            "${GIT_DIR}/../usr/bin"
+      NO_DEFAULT_PATH)
     if (NOT OE_DOS2UNIX)
       message(FATAL_ERROR "Dos2unix not found!")
     endif ()

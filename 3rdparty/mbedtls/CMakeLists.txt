@@ -48,7 +48,8 @@ elseif (MBEDTLS_C_COMPILER MATCHES clang)
     -Wmissing-prototypes
     -Wdocumentation
     -Wno-documentation-deprecated-sync
-    -Wunreachable-code)
+    -Wunreachable-code
+    -Wno-declaration-after-statement)
 else ()
   message(FATAL_ERROR "Unsupported compiler: ${MBEDTLS_C_COMPILER}")
 endif ()

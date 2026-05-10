@@ -107,6 +107,13 @@ if (CMAKE_CXX_COMPILER_ID MATCHES GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
                       -Wno-missing-field-initializers)
   add_compile_options(-fno-strict-aliasing)
 
+  # Clang >= 13 treats -Wunused-but-set-variable as an error. Suppress it
+  # globally since vendored 3rd-party code (musl, dlmalloc) triggers it.
+  if (CMAKE_C_COMPILER_ID MATCHES Clang AND CMAKE_C_COMPILER_VERSION
+                                            VERSION_GREATER_EQUAL 13)
+    add_compile_options(-Wno-unused-but-set-variable)
+  endif ()
+
   # Allow checks which always evaluate to true or false due to type limits.
   # This is required as some macros operate on types of varying sizes.
   add_compile_options(-Wno-type-limits)

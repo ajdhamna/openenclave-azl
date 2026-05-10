@@ -44,3 +44,42 @@ function (apply_patches patches_path target_path)
                     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
   endforeach ()
 endfunction ()
+
+# Detect the Linux distribution.
+# Parses /etc/os-release and sets convenience booleans: AZURE_LINUX, UBUNTU, DEBIAN.
+function (detect_linux_distro)
+  if (NOT UNIX OR WIN32)
+    return()
+  endif ()
+
+  if (EXISTS "/etc/os-release")
+    file(STRINGS "/etc/os-release" OS_RELEASE_ID REGEX "^ID=")
+    string(REGEX REPLACE "^ID=\"?([a-zA-Z]*)\"?" "\\1" DISTRO_ID
+                         "${OS_RELEASE_ID}")
+    string(TOLOWER "${DISTRO_ID}" DISTRO_ID)
+
+    set(AZURE_LINUX
+        FALSE
+        PARENT_SCOPE)
+    set(UBUNTU
+        FALSE
+        PARENT_SCOPE)
+    set(DEBIAN
+        FALSE
+        PARENT_SCOPE)
+
+    if (DISTRO_ID STREQUAL "azurelinux")
+      set(AZURE_LINUX
+          TRUE
+          PARENT_SCOPE)
+    elseif (DISTRO_ID STREQUAL "ubuntu")
+      set(UBUNTU
+          TRUE
+          PARENT_SCOPE)
+    elseif (DISTRO_ID STREQUAL "debian")
+      set(DEBIAN
+          TRUE
+          PARENT_SCOPE)
+    endif ()
+  endif ()
+endfunction ()

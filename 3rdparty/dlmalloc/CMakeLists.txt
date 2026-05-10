@@ -26,8 +26,10 @@ enclave_compile_options(
 # they will appear last in the compiler command line and supercede
 # other warning options.
 set_source_files_properties(
-  allocator.c PROPERTIES COMPILE_FLAGS
-                         "-Wno-conversion -Wno-null-pointer-arithmetic")
+  allocator.c
+  PROPERTIES
+    COMPILE_FLAGS
+    "-Wno-conversion -Wno-null-pointer-arithmetic -Wno-unused-but-set-variable")
 
 maybe_build_using_clangw(oedlmalloc_obj)
 

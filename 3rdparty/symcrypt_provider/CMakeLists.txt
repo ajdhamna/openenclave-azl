@@ -111,6 +111,15 @@ if (UNIX)
   set(CLANG_INTRINSIC_HEADERS_SEARCH_PATH
       "/usr/lib/llvm-${CLANG_MAJOR_VERSION}/lib/clang/${CMAKE_C_COMPILER_VERSION}/include"
   )
+
+  # Azure Linux uses a different directory layout for clang intrinsic headers.
+  if (AZURE_LINUX)
+    execute_process(
+      COMMAND ${CMAKE_C_COMPILER} -print-resource-dir
+      OUTPUT_VARIABLE CLANG_RESOURCE_DIR
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
+    set(CLANG_INTRINSIC_HEADERS_SEARCH_PATH "${CLANG_RESOURCE_DIR}/include")
+  endif ()
 elseif (WIN32)
   find_program(
     CLANG_COMPILER clang

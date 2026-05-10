@@ -30,8 +30,13 @@ add_enclave_library(
   openssl_t.h)
 
 enclave_compile_options(
-  openssl-support PRIVATE -Wno-shorten-64-to-32 -Wno-sign-conversion
-  -Wno-conversion -Wno-unused-parameter)
+  openssl-support
+  PRIVATE
+  -Wno-shorten-64-to-32
+  -Wno-sign-conversion
+  -Wno-conversion
+  -Wno-unused-parameter
+  -Wno-deprecated-declarations)
 
 enclave_link_libraries(openssl-support PRIVATE oelibcxx oelibc oe_includes)
 enclave_include_directories(
@@ -80,8 +85,13 @@ add_enclave_library(
 enclave_compile_definitions(openssl_3-support PRIVATE __STDC_NO_ATOMICS__)
 
 enclave_compile_options(
-  openssl_3-support PRIVATE -Wno-shorten-64-to-32 -Wno-sign-conversion
-  -Wno-conversion -Wno-unused-parameter)
+  openssl_3-support
+  PRIVATE
+  -Wno-shorten-64-to-32
+  -Wno-sign-conversion
+  -Wno-conversion
+  -Wno-unused-parameter
+  -Wno-deprecated-declarations)
 
 enclave_link_libraries(openssl_3-support PRIVATE oelibcxx oelibc oe_includes)
 enclave_include_directories(
