@@ -1,0 +1,286 @@
+diff --git a/.gitignore b/.gitignore
+index 11912afcd..da027ad53 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -51,3 +51,4 @@ prereqs/dcap/*.deb
+ prereqs/nuget/*
+ prereqs/packages/.packages
+ prereqs/sgx-driver/*.bin
++build-azl/
+diff --git a/3rdparty/dlmalloc/CMakeLists.txt b/3rdparty/dlmalloc/CMakeLists.txt
+index 71842f187..0e334dcaf 100644
+--- a/3rdparty/dlmalloc/CMakeLists.txt
++++ b/3rdparty/dlmalloc/CMakeLists.txt
+@@ -26,8 +26,10 @@ enclave_compile_options(
+ # they will appear last in the compiler command line and supercede
+ # other warning options.
+ set_source_files_properties(
+-  allocator.c PROPERTIES COMPILE_FLAGS
+-                         "-Wno-conversion -Wno-null-pointer-arithmetic")
++  allocator.c
++  PROPERTIES
++    COMPILE_FLAGS
++    "-Wno-conversion -Wno-null-pointer-arithmetic -Wno-unused-but-set-variable")
+ 
+ maybe_build_using_clangw(oedlmalloc_obj)
+ 
+diff --git a/3rdparty/mbedtls/CMakeLists.txt b/3rdparty/mbedtls/CMakeLists.txt
+index de75189b7..22f1f8fe8 100644
+--- a/3rdparty/mbedtls/CMakeLists.txt
++++ b/3rdparty/mbedtls/CMakeLists.txt
+@@ -48,7 +48,8 @@ elseif (MBEDTLS_C_COMPILER MATCHES clang)
+     -Wmissing-prototypes
+     -Wdocumentation
+     -Wno-documentation-deprecated-sync
+-    -Wunreachable-code)
++    -Wunreachable-code
++    -Wno-declaration-after-statement)
+ else ()
+   message(FATAL_ERROR "Unsupported compiler: ${MBEDTLS_C_COMPILER}")
+ endif ()
+diff --git a/3rdparty/symcrypt_engine/CMakeLists.txt b/3rdparty/symcrypt_engine/CMakeLists.txt
+index 1822baca2..e183a638c 100644
+--- a/3rdparty/symcrypt_engine/CMakeLists.txt
++++ b/3rdparty/symcrypt_engine/CMakeLists.txt
+@@ -86,6 +86,15 @@ if (UNIX)
+   set(CLANG_INTRINSIC_HEADERS_SEARCH_PATH
+       "/usr/lib/llvm-${CLANG_MAJOR_VERSION}/lib/clang/${CMAKE_C_COMPILER_VERSION}/include"
+   )
++
++  # Azure Linux uses a different directory layout for clang intrinsic headers.
++  if (AZURE_LINUX)
++    execute_process(
++      COMMAND ${CMAKE_C_COMPILER} -print-resource-dir
++      OUTPUT_VARIABLE CLANG_RESOURCE_DIR
++      OUTPUT_STRIP_TRAILING_WHITESPACE)
++    set(CLANG_INTRINSIC_HEADERS_SEARCH_PATH "${CLANG_RESOURCE_DIR}/include")
++  endif ()
+ elseif (WIN32)
+   find_program(
+     CLANG_COMPILER clang
+diff --git a/3rdparty/symcrypt_provider/CMakeLists.txt b/3rdparty/symcrypt_provider/CMakeLists.txt
+index 5b9146e88..08d86c061 100644
+--- a/3rdparty/symcrypt_provider/CMakeLists.txt
++++ b/3rdparty/symcrypt_provider/CMakeLists.txt
+@@ -111,6 +111,15 @@ if (UNIX)
+   set(CLANG_INTRINSIC_HEADERS_SEARCH_PATH
+       "/usr/lib/llvm-${CLANG_MAJOR_VERSION}/lib/clang/${CMAKE_C_COMPILER_VERSION}/include"
+   )
++
++  # Azure Linux uses a different directory layout for clang intrinsic headers.
++  if (AZURE_LINUX)
++    execute_process(
++      COMMAND ${CMAKE_C_COMPILER} -print-resource-dir
++      OUTPUT_VARIABLE CLANG_RESOURCE_DIR
++      OUTPUT_STRIP_TRAILING_WHITESPACE)
++    set(CLANG_INTRINSIC_HEADERS_SEARCH_PATH "${CLANG_RESOURCE_DIR}/include")
++  endif ()
+ elseif (WIN32)
+   find_program(
+     CLANG_COMPILER clang
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index b65fea498..578929143 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -17,6 +17,9 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+ # Include utilities such as `check_submodule_not_empty`.
+ include(utilities)
+ 
++# Detect Linux distribution so subdirectories can use OE_LINUX_DISTRO.
++detect_linux_distro()
++
+ # Read version from "VERSION" file.
+ file(STRINGS "VERSION" OE_VERSION_WITH_V)
+ string(REGEX REPLACE "^v" "" OE_VERSION ${OE_VERSION_WITH_V})
+@@ -138,14 +141,14 @@ if (IS_DIRECTORY "${PROJECT_SOURCE_DIR}/.git")
+   execute_process(
+     COMMAND git rev-parse HEAD
+     OUTPUT_VARIABLE GIT_COMMIT
+-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR} ERROR_QUIET
+-                      OUTPUT_STRIP_TRAILING_WHITESPACE)
++    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
++    ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
+ 
+   execute_process(
+     COMMAND git symbolic-ref HEAD
+     OUTPUT_VARIABLE GIT_BRANCH
+-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR} ERROR_QUIET
+-                      OUTPUT_STRIP_TRAILING_WHITESPACE)
++    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
++    ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
+ 
+   # Install Git pre-commit hook
+   file(COPY scripts/pre-commit scripts/commit-msg
+@@ -271,8 +274,9 @@ if (WIN32)
+   find_program(GIT git)
+   get_filename_component(GIT_DIR ${GIT} DIRECTORY)
+   find_program(
+-    OE_BASH bash PATHS "C:/Program Files/Git/bin" "${GIT_DIR}/../bin"
+-                       NO_DEFAULT_PATH) # Do not find WSL bash.
++    OE_BASH bash
++    PATHS "C:/Program Files/Git/bin" "${GIT_DIR}/../bin"
++    NO_DEFAULT_PATH) # Do not find WSL bash.
+ 
+   if (NOT OE_BASH)
+     message(FATAL_ERROR "Git Bash not found!")
+@@ -284,7 +288,8 @@ if (WIN32)
+     find_program(
+       OE_PERL perl
+       PATHS "C:/Program Files/Git/bin" "C:/Program Files/Git/usr/bin"
+-            "${GIT_DIR}/../usr/bin" NO_DEFAULT_PATH)
++            "${GIT_DIR}/../usr/bin"
++      NO_DEFAULT_PATH)
+     if (NOT OE_PERL)
+       message(FATAL_ERROR "Perl not found!")
+     endif ()
+@@ -294,7 +299,8 @@ if (WIN32)
+     find_program(
+       OE_DOS2UNIX dos2unix
+       PATHS "C:/Program Files/Git/bin" "C:/Program Files/Git/usr/bin"
+-            "${GIT_DIR}/../usr/bin" NO_DEFAULT_PATH)
++            "${GIT_DIR}/../usr/bin"
++      NO_DEFAULT_PATH)
+     if (NOT OE_DOS2UNIX)
+       message(FATAL_ERROR "Dos2unix not found!")
+     endif ()
+diff --git a/cmake/compiler_settings.cmake b/cmake/compiler_settings.cmake
+index 32beb0c08..4ffb9859d 100644
+--- a/cmake/compiler_settings.cmake
++++ b/cmake/compiler_settings.cmake
+@@ -107,6 +107,13 @@ if (CMAKE_CXX_COMPILER_ID MATCHES GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
+                       -Wno-missing-field-initializers)
+   add_compile_options(-fno-strict-aliasing)
+ 
++  # Clang >= 13 treats -Wunused-but-set-variable as an error. Suppress it
++  # globally since vendored 3rd-party code (musl, dlmalloc) triggers it.
++  if (CMAKE_C_COMPILER_ID MATCHES Clang AND CMAKE_C_COMPILER_VERSION
++                                            VERSION_GREATER_EQUAL 13)
++    add_compile_options(-Wno-unused-but-set-variable)
++  endif ()
++
+   # Allow checks which always evaluate to true or false due to type limits.
+   # This is required as some macros operate on types of varying sizes.
+   add_compile_options(-Wno-type-limits)
+diff --git a/cmake/utilities.cmake b/cmake/utilities.cmake
+index 6987ba01f..9d64d78d4 100644
+--- a/cmake/utilities.cmake
++++ b/cmake/utilities.cmake
+@@ -44,3 +44,42 @@ function (apply_patches patches_path target_path)
+                     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
+   endforeach ()
+ endfunction ()
++
++# Detect the Linux distribution.
++# Parses /etc/os-release and sets convenience booleans: AZURE_LINUX, UBUNTU, DEBIAN.
++function (detect_linux_distro)
++  if (NOT UNIX OR WIN32)
++    return()
++  endif ()
++
++  if (EXISTS "/etc/os-release")
++    file(STRINGS "/etc/os-release" OS_RELEASE_ID REGEX "^ID=")
++    string(REGEX REPLACE "^ID=\"?([a-zA-Z]*)\"?" "\\1" DISTRO_ID
++                         "${OS_RELEASE_ID}")
++    string(TOLOWER "${DISTRO_ID}" DISTRO_ID)
++
++    set(AZURE_LINUX
++        FALSE
++        PARENT_SCOPE)
++    set(UBUNTU
++        FALSE
++        PARENT_SCOPE)
++    set(DEBIAN
++        FALSE
++        PARENT_SCOPE)
++
++    if (DISTRO_ID STREQUAL "azurelinux")
++      set(AZURE_LINUX
++          TRUE
++          PARENT_SCOPE)
++    elseif (DISTRO_ID STREQUAL "ubuntu")
++      set(UBUNTU
++          TRUE
++          PARENT_SCOPE)
++    elseif (DISTRO_ID STREQUAL "debian")
++      set(DEBIAN
++          TRUE
++          PARENT_SCOPE)
++    endif ()
++  endif ()
++endfunction ()
+diff --git a/tests/libcxx/enc/CMakeLists.txt b/tests/libcxx/enc/CMakeLists.txt
+index 6d1c76e43..bbdde00af 100644
+--- a/tests/libcxx/enc/CMakeLists.txt
++++ b/tests/libcxx/enc/CMakeLists.txt
+@@ -23,7 +23,8 @@ enclave_compile_options(
+   -Wno-error=strict-overflow
+   -Wno-error=unused-local-typedefs
+   -Wno-error=unused-variable
+-  -Wno-sign-conversion)
++  -Wno-sign-conversion
++  -Wno-deprecated-declarations)
+ 
+ if (ENABLE_FULL_LIBCXX_TESTS)
+   enclave_compile_definitions(libcxxtest-support PRIVATE FULL_LIBCXX_TESTS)
+diff --git a/tests/oeedger8r/enc/CMakeLists.txt b/tests/oeedger8r/enc/CMakeLists.txt
+index 47ada2296..f3ae388f7 100644
+--- a/tests/oeedger8r/enc/CMakeLists.txt
++++ b/tests/oeedger8r/enc/CMakeLists.txt
+@@ -64,6 +64,8 @@ set_source_files_properties(
+                                "-Wno-conversion -Wno-sign-compare")
+ set_source_files_properties(testpointer.cpp PROPERTIES COMPILE_FLAGS
+                                                        "-Wno-unused-parameter")
++set_source_files_properties(testforeign.cpp PROPERTIES COMPILE_FLAGS
++                                                       "-Wno-vla-cxx-extension")
+ 
+ enclave_include_directories(edl_enc PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
+                             ${CMAKE_CURRENT_SOURCE_DIR}/..)
+diff --git a/tests/oeedger8r/enc/config.cpp b/tests/oeedger8r/enc/config.cpp
+index 3e24775b4..c0b36c00b 100644
+--- a/tests/oeedger8r/enc/config.cpp
++++ b/tests/oeedger8r/enc/config.cpp
+@@ -25,7 +25,7 @@ void configure_type(const char* type_name, type_enum_t t)
+         g_enabled[t] ? "enabled" : "disabled");
+ }
+ 
+-void configure(uint8_t enabled[3])
++void configure(uint8_t enabled[4])
+ {
+     configure_type("wchar_t", TYPE_WCHAR_T);
+     configure_type("long", TYPE_LONG);
+diff --git a/tests/openssl/enc/CMakeLists.txt b/tests/openssl/enc/CMakeLists.txt
+index 00f3b0fe4..7aa1fcd22 100644
+--- a/tests/openssl/enc/CMakeLists.txt
++++ b/tests/openssl/enc/CMakeLists.txt
+@@ -30,8 +30,13 @@ add_enclave_library(
+   openssl_t.h)
+ 
+ enclave_compile_options(
+-  openssl-support PRIVATE -Wno-shorten-64-to-32 -Wno-sign-conversion
+-  -Wno-conversion -Wno-unused-parameter)
++  openssl-support
++  PRIVATE
++  -Wno-shorten-64-to-32
++  -Wno-sign-conversion
++  -Wno-conversion
++  -Wno-unused-parameter
++  -Wno-deprecated-declarations)
+ 
+ enclave_link_libraries(openssl-support PRIVATE oelibcxx oelibc oe_includes)
+ enclave_include_directories(
+@@ -80,8 +85,13 @@ add_enclave_library(
+ enclave_compile_definitions(openssl_3-support PRIVATE __STDC_NO_ATOMICS__)
+ 
+ enclave_compile_options(
+-  openssl_3-support PRIVATE -Wno-shorten-64-to-32 -Wno-sign-conversion
+-  -Wno-conversion -Wno-unused-parameter)
++  openssl_3-support
++  PRIVATE
++  -Wno-shorten-64-to-32
++  -Wno-sign-conversion
++  -Wno-conversion
++  -Wno-unused-parameter
++  -Wno-deprecated-declarations)
+ 
+ enclave_link_libraries(openssl_3-support PRIVATE oelibcxx oelibc oe_includes)
+ enclave_include_directories(

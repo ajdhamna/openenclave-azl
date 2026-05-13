@@ -1,0 +1,109 @@
+# Dockerfile for building Open Enclave SDK on Azure Linux 3.0
+#
+# Usage - Build:
+#   docker build -f Dockerfile.azurelinux3 -t openenclave-azl3-build .
+#
+# Usage - Test OE tools + SGX:
+#   docker run --rm \
+#     --device /dev/sgx_enclave:/dev/sgx_enclave \
+#     --device /dev/sgx_provision:/dev/sgx_provision \
+#     openenclave-azl3-build bash -c "
+#       export PATH=/build/output/bin:\$PATH
+#       export LD_LIBRARY_PATH=/build/output/lib:/build/output/lib/openenclave:/usr/lib64
+#       sed -i 's|https://localhost:8081|https://api.trustedservices.intel.com|g' /etc/sgx_default_qcnl.conf
+#       sed -i 's|//,\"collateral_service\".*|,\"collateral_service\": \"https://api.trustedservices.intel.com/sgx/certification/v4/\"|g' /etc/sgx_default_qcnl.conf
+#       echo '--- SGX Platform ---' && oesgx
+#       echo '--- oesign dump ---' && oesign dump -e /build/output/bin/oeutil_enc.signed
+#       echo '--- oesign sign ---'
+#       cp /build/tests/stack_overflow_exception/enc/sgx_stack_overflow_exception_enc /tmp/test_enc
+#       oesign sign -e /tmp/test_enc \
+#         -c /build/tests/tools/oesign/test-inputs/valid.conf \
+#         -k /build/tests/tools/oesign/test-inputs/sign_key.private.pem
+#       echo '--- SGX Evidence ---'
+#       oeutil generate-evidence -f SGX_ECDSA -o /tmp/evidence.bin --bypass-date-check
+#       ls -lh /tmp/evidence.bin && echo 'ALL TESTS PASSED'
+#     "
+
+FROM mcr.microsoft.com/azurelinux/base/core:3.0
+
+# Install build tools and compilers
+RUN tdnf install -y \
+    cmake \
+    ninja-build \
+    clang \
+    gcc \
+    gcc-c++ \
+    make \
+    binutils \
+    glibc-devel \
+    kernel-headers \
+    && tdnf clean all
+
+# Install development libraries
+RUN tdnf install -y \
+    openssl-devel \
+    sqlite-devel \
+    && tdnf clean all
+
+# Install build utilities
+RUN tdnf install -y \
+    git \
+    pkg-config \
+    autoconf \
+    libtool \
+    curl \
+    tar \
+    unzip \
+    gawk \
+    patch \
+    && tdnf clean all
+
+# Install documentation and debugging tools
+RUN tdnf install -y \
+    doxygen \
+    graphviz \
+    gdb \
+    && tdnf clean all
+
+# Install CA certificates for git submodule fetches
+RUN tdnf install -y ca-certificates && update-ca-trust
+
+# Install Intel SGX DCAP libraries from Intel's official AzureLinux3 RPM local repo.
+# Provides libdcap_quoteprov.so and related libs needed for SGX quote generation.
+# Repo: https://download.01.org/intel-sgx/latest/dcap-latest/linux/distro/AzureLinux3.0/
+RUN curl -fsSL https://download.01.org/intel-sgx/latest/dcap-latest/linux/distro/AzureLinux3.0/sgx_rpm_local_repo.tgz \
+        -o /tmp/sgx_rpm_local_repo.tgz && \
+    tar -xzf /tmp/sgx_rpm_local_repo.tgz -C /opt && \
+    tdnf install -y createrepo_c && \
+    createrepo_c /opt/sgx_rpm_local_repo && \
+    printf '[intel-sgx-local]\nname=Intel SGX Local Repo\nbaseurl=file:///opt/sgx_rpm_local_repo\nenabled=1\ngpgcheck=0\n' \
+        > /etc/yum.repos.d/intel-sgx-local.repo && \
+    tdnf install -y \
+        libsgx-enclave-common \
+        libsgx-enclave-common-devel \
+        libsgx-dcap-ql \
+        libsgx-dcap-ql-devel \
+        libsgx-dcap-quote-verify \
+        libsgx-dcap-default-qpl \
+        libsgx-quote-ex && \
+    ln -sf /usr/lib64/libdcap_quoteprov.so.1 /usr/lib64/libdcap_quoteprov.so && \
+    rm -f /tmp/sgx_rpm_local_repo.tgz && \
+    tdnf clean all
+
+# Clone OpenEnclave from GitHub and apply azl3 support patch
+COPY azl3-support.patch /tmp/azl3-support.patch
+RUN git clone --depth=1 https://github.com/openenclave/openenclave /src && \
+    cd /src && \
+    git apply /tmp/azl3-support.patch && \
+    git submodule update --init --recursive && \
+    rm /tmp/azl3-support.patch
+
+# Build OpenEnclave
+RUN mkdir -p /build && cd /build && \
+    cmake -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo /src && \
+    ninja -j$(nproc)
+
+# Configure git to trust source directories
+RUN git config --global --add safe.directory '*'
+
+WORKDIR /build
