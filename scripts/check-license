@@ -49,7 +49,7 @@ if [[ $# -ne 0 ]]; then
             continue
         fi
 
-        file=${file#$root/} # remove the prefix
+        file=${file#"$root"/} # remove the prefix
 
         if should_ignore "$file"; then
             continue

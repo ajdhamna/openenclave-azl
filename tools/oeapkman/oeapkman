@@ -216,9 +216,9 @@ alpine_exec()
 
     if test -f dist/proot; then
         if [ $optee -eq 1 ]; then
-            qemu_spec="-q qemu-aarch64-static"
+            qemu_spec=(-q qemu-aarch64-static)
         else
-            qemu_spec=""
+            qemu_spec=()
         fi
         # Root home folder is /root. Therefore bind both $HOME and /home
         dist/proot -b /dev -b /dev/pts -b /proc -b /sys -b /dev/shm \
@@ -228,7 +228,7 @@ alpine_exec()
                    -r "$ALPINE_FS" \
                    -0 \
                    -w "$CURRENT_DIR" \
-                   $qemu_spec \
+                   "${qemu_spec[@]}" \
                     "$@"
 
     else
