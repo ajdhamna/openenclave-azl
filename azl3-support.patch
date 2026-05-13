@@ -230,8 +230,15 @@ index 47ada2296..f3ae388f7 100644
                                 "-Wno-conversion -Wno-sign-compare")
  set_source_files_properties(testpointer.cpp PROPERTIES COMPILE_FLAGS
                                                         "-Wno-unused-parameter")
-+set_source_files_properties(testforeign.cpp PROPERTIES COMPILE_FLAGS
-+                                                       "-Wno-vla-cxx-extension")
++# -Wvla-cxx-extension was introduced in clang 12; probe before use.
++include(CheckCXXCompilerFlag)
++check_cxx_compiler_flag(
++  "-Wno-vla-cxx-extension"
++  OE_COMPILER_SUPPORTS_WNO_VLA_CXX_EXTENSION)
++if(OE_COMPILER_SUPPORTS_WNO_VLA_CXX_EXTENSION)
++  set_source_files_properties(testforeign.cpp PROPERTIES COMPILE_FLAGS
++                                                         "-Wno-vla-cxx-extension")
++endif()
  
  enclave_include_directories(edl_enc PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
                              ${CMAKE_CURRENT_SOURCE_DIR}/..)

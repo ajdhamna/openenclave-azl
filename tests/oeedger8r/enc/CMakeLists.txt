@@ -64,8 +64,18 @@ set_source_files_properties(
                                "-Wno-conversion -Wno-sign-compare")
 set_source_files_properties(testpointer.cpp PROPERTIES COMPILE_FLAGS
                                                        "-Wno-unused-parameter")
-set_source_files_properties(testforeign.cpp PROPERTIES COMPILE_FLAGS
-                                                       "-Wno-vla-cxx-extension")
+
+# -Wvla-cxx-extension was introduced in clang 12. Only suppress it when the
+# compiler recognises it; older compilers (e.g. clang-11) treat an unknown
+# -Wno-* flag as an error via -Wunknown-warning-option.
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag(
+  "-Wno-vla-cxx-extension"
+  OE_COMPILER_SUPPORTS_WNO_VLA_CXX_EXTENSION)
+if(OE_COMPILER_SUPPORTS_WNO_VLA_CXX_EXTENSION)
+  set_source_files_properties(testforeign.cpp PROPERTIES COMPILE_FLAGS
+                                                         "-Wno-vla-cxx-extension")
+endif()
 
 enclave_include_directories(edl_enc PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
                             ${CMAKE_CURRENT_SOURCE_DIR}/..)
