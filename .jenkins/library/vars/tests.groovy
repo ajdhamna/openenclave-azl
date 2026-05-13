@@ -1017,3 +1017,46 @@ def checkCI(String compiler, String pr_id = '') {
         }
     }
 }
+
+/* Builds and runs simulation-mode ctest for OE on Azure Linux 3.0.
+ * Uses an image built from Dockerfile.azurelinux3-dev in the repo.
+ * No SGX hardware is required.
+ *
+ * @param build_type                 [string]  cmake build type (Debug, RelWithDebInfo, Release)
+ * @param lvi_mitigation             [string]  LVI mitigation: None, ControlFlow-Clang, etc.
+ * @param skip_lvi_mitigation_tests  [boolean] skip LVI mitigation tests?
+ * @param use_snmalloc               [boolean] use snmalloc allocator?
+ * @param pr_id                      [string]  Optional - checkout a specific PR merge head
+ */
+def simulationContainerTestAzureLinux(String build_type, String lvi_mitigation, boolean skip_lvi_mitigation_tests, boolean use_snmalloc, String pr_id = '') {
+    stage("Sim AzureLinux3 clang ${build_type} ${lvi_mitigation} SNMALLOC=${use_snmalloc}") {
+        node(globalvars.AGENTS_LABELS["azl3-nonsgx"]) {
+            timeout(globalvars.GLOBAL_TIMEOUT_MINUTES) {
+                cleanWs()
+                helpers.oeCheckoutScm(pr_id)
+                def runArgs = "--cap-add=SYS_PTRACE"
+                def cmakeArgs = helpers.CmakeArgs(
+                                 builder: 'Ninja',
+                                 build_type: build_type,
+                                 code_coverage: false,
+                                 debug_malloc: true,
+                                 lvi_mitigation: lvi_mitigation,
+                                 lvi_mitigation_skip_tests: skip_lvi_mitigation_tests,
+                                 use_snmalloc: use_snmalloc)
+                def task = """
+                           ${helpers.buildCommand(cmakeArgs, 'Ninja')}
+                           ${helpers.TestCommand()}
+                           """
+                // Build the dev environment image from the repo's Dockerfile
+                def image = docker.build("oetools-azl3:${BUILD_NUMBER}", "-f ${WORKSPACE}/Dockerfile.azurelinux3-dev ${WORKSPACE}")
+                withEnv(["OE_SIMULATION=1", "CC=clang", "CXX=clang++"]) {
+                    image.inside(runArgs) {
+                        dir("${WORKSPACE}/build") {
+                            sh task
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

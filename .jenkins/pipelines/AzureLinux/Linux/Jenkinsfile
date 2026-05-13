@@ -1,0 +1,49 @@
+// Copyright (c) Open Enclave SDK contributors.
+// Licensed under the MIT License.
+
+// Azure Linux 3.0 – SGX hardware test pipeline.
+// Mirrors the Azure/Linux Jenkinsfile but targets AZL3 ACC nodes.
+// Also includes simulation-mode jobs that run on non-SGX AZL3 nodes.
+
+library "OpenEnclaveJenkinsLibrary@${params.OECI_LIB_VERSION}"
+GLOBAL_ERROR = globalvars.GLOBAL_ERROR
+
+try{
+    def testing_stages = [
+        // ----------------------------------------------------------------
+        // Simulation-mode builds (no SGX hardware required)
+        // ----------------------------------------------------------------
+        "Sim AzureLinux3 clang RelWithDebInfo":          { tests.simulationContainerTestAzureLinux('RelWithDebInfo', 'None', true,  false, params.PULL_REQUEST_ID) },
+        "Sim AzureLinux3 clang RelWithDebInfo snmalloc": { tests.simulationContainerTestAzureLinux('RelWithDebInfo', 'None', true,  true,  params.PULL_REQUEST_ID) },
+        "Sim AzureLinux3 clang Debug":                   { tests.simulationContainerTestAzureLinux('Debug',          'None', true,  false, params.PULL_REQUEST_ID) },
+
+        // ----------------------------------------------------------------
+        // SGX hardware builds on ACC AZL3 nodes
+        //   ACCTest args: label, compiler, build_type, lvi_mitigation,
+        //                 skip_lvi_tests, use_snmalloc, use_eeid,
+        //                 fresh_install, pr_id
+        // ----------------------------------------------------------------
+        "ACC AZL3 v2 clang RelWithDebInfo ControlFlow":        { tests.ACCTest(globalvars.AGENTS_LABELS["acc-v2-azl3"], 'clang', 'RelWithDebInfo', 'ControlFlow', true,  false, false, false, params.PULL_REQUEST_ID) },
+        "ACC AZL3 v3 clang RelWithDebInfo ControlFlow":        { tests.ACCTest(globalvars.AGENTS_LABELS["acc-v3-azl3"], 'clang', 'RelWithDebInfo', 'ControlFlow', true,  false, false, false, params.PULL_REQUEST_ID) },
+        "ACC AZL3 v2 clang Debug":                             { tests.ACCTest(globalvars.AGENTS_LABELS["acc-v2-azl3"], 'clang', 'Debug',          'None',        true,  false, false, false, params.PULL_REQUEST_ID) }
+    ]
+
+    if(FULL_TEST_SUITE == "true") {
+        testing_stages += [
+            "Sim AzureLinux3 clang Debug snmalloc":              { tests.simulationContainerTestAzureLinux('Debug',          'None', false, true,  params.PULL_REQUEST_ID) },
+            "ACC AZL3 v2 clang RelWithDebInfo ControlFlow e2e":  { tests.ACCTest(globalvars.AGENTS_LABELS["acc-v2-azl3"], 'clang', 'RelWithDebInfo', 'ControlFlow', false, false, false, true,  params.PULL_REQUEST_ID) },
+            "ACC AZL3 v2 clang RelWithDebInfo ControlFlow snmalloc": { tests.ACCTest(globalvars.AGENTS_LABELS["acc-v2-azl3"], 'clang', 'RelWithDebInfo', 'ControlFlow', false, true,  false, false, params.PULL_REQUEST_ID) },
+            "ACC AZL3 v3 clang RelWithDebInfo ControlFlow snmalloc": { tests.ACCTest(globalvars.AGENTS_LABELS["acc-v3-azl3"], 'clang', 'RelWithDebInfo', 'ControlFlow', false, true,  false, false, params.PULL_REQUEST_ID) }
+        ]
+    }
+
+    stage("Run tests") {
+        parallel testing_stages
+    }
+} catch(Exception e) {
+    println "Caught global pipeline exception: " + e
+    GLOBAL_ERROR = e
+    throw e
+} finally {
+    currentBuild.result = (GLOBAL_ERROR != null) ? 'FAILURE' : "SUCCESS"
+}

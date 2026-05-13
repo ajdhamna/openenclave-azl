@@ -7,9 +7,13 @@
 name: "CodeQL"
 on:
   push:
-    branches: [ master ]
+    branches:
+      - master
+      - azurelinux3-support
   pull_request:
-    branches: [ master ]
+    branches:
+      - master
+      - azurelinux3-support
     paths-ignore:
       - '**/*.md'
   schedule:

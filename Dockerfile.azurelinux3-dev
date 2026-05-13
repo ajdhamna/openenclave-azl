@@ -1,0 +1,93 @@
+# Copyright (c) Open Enclave SDK contributors.
+# Licensed under the MIT License.
+#
+# Dev environment image for building Open Enclave SDK on Azure Linux 3.0
+#
+# This image installs all build dependencies without cloning or building the SDK.
+# It is used as a CI container (GitHub Actions / Jenkins) where the source
+# code is mounted from the workspace at build time.
+#
+# Usage - Build image:
+#   docker build -f Dockerfile.azurelinux3-dev -t oetools-azl3 .
+#
+# Usage - Build SDK in simulation mode (no SGX hardware required):
+#   docker run --rm --cap-add=SYS_PTRACE -v $(pwd):/src -w /src \
+#     -e OE_SIMULATION=1 \
+#     oetools-azl3 bash -c "
+#       mkdir -p build && cd build
+#       cmake -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+#             -DLVI_MITIGATION=None -DLVI_MITIGATION_SKIP_TESTS=ON ..
+#       ninja -j\$(nproc)
+#       ctest --output-on-failure --timeout 480
+#     "
+
+FROM mcr.microsoft.com/azurelinux/base/core:3.0
+
+# Install build tools and compilers
+RUN tdnf install -y \
+    cmake \
+    ninja-build \
+    clang \
+    gcc \
+    gcc-c++ \
+    make \
+    binutils \
+    glibc-devel \
+    kernel-headers \
+    && tdnf clean all
+
+# Install development libraries
+RUN tdnf install -y \
+    openssl-devel \
+    sqlite-devel \
+    && tdnf clean all
+
+# Install build utilities
+RUN tdnf install -y \
+    git \
+    pkg-config \
+    autoconf \
+    libtool \
+    curl \
+    tar \
+    unzip \
+    gawk \
+    patch \
+    && tdnf clean all
+
+# Install documentation and debugging tools
+RUN tdnf install -y \
+    doxygen \
+    graphviz \
+    gdb \
+    && tdnf clean all
+
+# Install CA certificates for submodule fetches
+RUN tdnf install -y ca-certificates && update-ca-trust
+
+# Install Intel SGX DCAP libraries from Intel's official AzureLinux3 RPM local repo.
+# Provides libdcap_quoteprov.so and related libs needed for SGX quote generation.
+# Repo: https://download.01.org/intel-sgx/latest/dcap-latest/linux/distro/AzureLinux3.0/
+RUN curl -fsSL https://download.01.org/intel-sgx/latest/dcap-latest/linux/distro/AzureLinux3.0/sgx_rpm_local_repo.tgz \
+        -o /tmp/sgx_rpm_local_repo.tgz && \
+    tar -xzf /tmp/sgx_rpm_local_repo.tgz -C /opt && \
+    tdnf install -y createrepo_c && \
+    createrepo_c /opt/sgx_rpm_local_repo && \
+    printf '[intel-sgx-local]\nname=Intel SGX Local Repo\nbaseurl=file:///opt/sgx_rpm_local_repo\nenabled=1\ngpgcheck=0\n' \
+        > /etc/yum.repos.d/intel-sgx-local.repo && \
+    tdnf install -y \
+        libsgx-enclave-common \
+        libsgx-enclave-common-devel \
+        libsgx-dcap-ql \
+        libsgx-dcap-ql-devel \
+        libsgx-dcap-quote-verify \
+        libsgx-dcap-default-qpl \
+        libsgx-quote-ex && \
+    ln -sf /usr/lib64/libdcap_quoteprov.so.1 /usr/lib64/libdcap_quoteprov.so && \
+    rm -f /tmp/sgx_rpm_local_repo.tgz && \
+    tdnf clean all
+
+# Allow git to trust any directory (needed when source is bind-mounted)
+RUN git config --global --add safe.directory '*'
+
+WORKDIR /src

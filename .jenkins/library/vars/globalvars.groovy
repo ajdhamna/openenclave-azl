@@ -34,6 +34,11 @@ import groovy.transform.Field
     "acc-ubuntu-20.04-us":         "ACC-2004-DC2-westus || ACC-2004-DC2-eastus",
     "acc-win2022-dcap-us":         "SGXFLC-Windows-2022-DCAP-westus || SGXFLC-Windows-2022-DCAP-eastus",
     // Others
-    "shared":                      "Jenkins-Shared-DC2"
+    "shared":                      "Jenkins-Shared-DC2",
+    // Azure Linux 3.0 VMs
+    "azl3-nonsgx":                 env.AZL3_NONSGX_CUSTOM_LABEL ?: "nonSGX-azurelinux-3",
+    "acc-azl3":                    env.AZL3_ACC_CUSTOM_LABEL    ?: "ACC-azurelinux-3",
+    "acc-v2-azl3":                 env.AZL3_ACC_V2_CUSTOM_LABEL ?: "ACC-v2-azurelinux-3-DC4",
+    "acc-v3-azl3":                 env.AZL3_ACC_V3_CUSTOM_LABEL ?: "ACC-v3-azurelinux-3-DC4"
 ]
 @Field COMPILER = "clang-11"
