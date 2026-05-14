@@ -1,0 +1,25 @@
+# Copyright (c) Open Enclave SDK contributors.
+# Licensed under the MIT License.
+
+# Install Docker (moby-engine) on Azure Linux 3.0 via tdnf.
+# Azure Linux ships moby-engine in its default repo.
+
+---
+- name: Docker | Install moby-engine and moby-cli
+  ansible.builtin.command: tdnf install -y moby-engine moby-cli
+  retries: 5
+  delay: 10
+  register: docker_install
+  until: docker_install.rc == 0
+
+- name: Docker | Enable and start docker service
+  ansible.builtin.systemd:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Docker | Add jenkins user to docker group
+  ansible.builtin.user:
+    name: jenkins
+    groups: docker
+    append: yes

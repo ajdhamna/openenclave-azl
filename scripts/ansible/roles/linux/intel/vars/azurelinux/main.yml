@@ -1,0 +1,29 @@
+# Copyright (c) Open Enclave SDK contributors.
+# Licensed under the MIT License.
+
+# Intel SGX packages for Azure Linux 3.0.
+# AZL3 kernel has SGX built-in — no separate driver binary needed.
+# Packages are installed from Intel's official AZL3 RPM local repo.
+
+---
+intel_sgx_rpm_local_repo_url: "https://download.01.org/intel-sgx/latest/dcap-latest/linux/distro/AzureLinux3.0/sgx_rpm_local_repo.tgz"
+intel_sgx_rpm_local_repo_path: "/opt/sgx_rpm_local_repo"
+
+intel_dcap_driver_files:
+  - "/dev/sgx_enclave"
+  - "/dev/sgx_provision"
+
+# SGX packages available in the Intel AZL3 RPM local repo
+intel_sgx_packages:
+  - "libsgx-enclave-common"
+  - "libsgx-enclave-common-devel"
+  - "libsgx-dcap-ql"
+  - "libsgx-dcap-ql-devel"
+  - "libsgx-dcap-quote-verify"
+  - "libsgx-dcap-default-qpl"
+  - "libsgx-quote-ex"
+
+packages_validation_distribution_files:
+  - "/usr/lib64/libsgx_enclave_common.so.1"
+  - "/usr/lib64/libdcap_quoteprov.so.1"
+  - "/usr/lib64/libsgx_dcap_ql.so"

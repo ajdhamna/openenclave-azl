@@ -1,0 +1,73 @@
+# Copyright (c) Open Enclave SDK contributors.
+# Licensed under the MIT License.
+
+# Jenkins packer setup for Azure Linux 3.0 agents.
+# Mirrors jenkins-packer.yml but targets azl3-agents group and
+# pulls the oetools-azl3 Docker image instead of oetools-20.04.
+
+---
+- hosts: azl3-agents
+  any_errors_fatal: true
+  gather_facts: true
+  become: yes
+  tasks:
+    - name: Include distribution vars
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/roles/linux/jenkins/vars/azurelinux/main.yml"
+
+    - name: Jenkins | Install Java JRE needed by Jenkins
+      ansible.builtin.command: "tdnf install -y {{ java_packages | join(' ') }}"
+      retries: 10
+      delay: 10
+      register: java_result
+      until: java_result.rc == 0
+
+    - name: Jenkins | Create the Jenkins group
+      ansible.builtin.group:
+        name: jenkins
+        state: present
+
+    - name: Jenkins | Add the Jenkins user
+      ansible.builtin.user:
+        name: jenkins
+        group: jenkins
+        state: present
+
+    - name: Jenkins | Install Docker (moby-engine)
+      ansible.builtin.import_role:
+        name: linux/docker
+        tasks_from: azurelinux/stable-install.yml
+
+    - name: Jenkins | Add Jenkins user to Docker group
+      ansible.builtin.user:
+        name: jenkins
+        groups: docker
+        append: yes
+
+    - name: Jenkins | Add jenkins_admin_name to sgx_prv group (if exists)
+      ansible.builtin.user:
+        name: "{{ jenkins_admin_name }}"
+        groups: sgx_prv
+        append: yes
+      ignore_errors: yes
+
+    - name: Jenkins | Docker login to registry
+      community.general.docker_login:
+        registry_url: "{{ docker_registry }}"
+        username: "{{ docker_user_name }}"
+        password: "{{ docker_user_password }}"
+        reauthorize: yes
+        tls: yes
+        validate_certs: yes
+
+    - name: Jenkins | Pull oetools-azl3 Docker image
+      community.general.docker_image:
+        name: "{{ docker_registry }}/oetools-azl3:{{ docker_tag }}"
+        source: pull
+      retries: 10
+      delay: 10
+
+    - name: Jenkins | Docker logout
+      community.general.docker_login:
+        registry_url: "{{ docker_registry }}"
+        state: absent

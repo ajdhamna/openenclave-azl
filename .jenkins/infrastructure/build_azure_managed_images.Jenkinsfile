@@ -365,8 +365,9 @@ node(params.AGENTS_LABEL) {
                 "Build WS2022 - SGX1FLC DCAP - clang11" : { buildWindowsManagedImage("WS22", "SGX-DCAP", "SGX1FLC", "11.1.0", image_version) }
             ]
             def linux_images = [
-                "Build Ubuntu 20.04" : { buildLinuxManagedImage("ubuntu", "20.04", image_version) },
-                "Build Ubuntu 22.04" : { buildLinuxManagedImage("ubuntu", "22.04", image_version) }
+                "Build Ubuntu 20.04"      : { buildLinuxManagedImage("ubuntu",       "20.04", image_version) },
+                "Build Ubuntu 22.04"      : { buildLinuxManagedImage("ubuntu",       "22.04", image_version) },
+                "Build Azure Linux 3.0"   : { buildLinuxManagedImage("azurelinux",   "3.0",   image_version) }
             ]
             def images = [:]
             if (params.BUILD_WINDOWS_IMAGES) {

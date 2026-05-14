@@ -1,0 +1,11 @@
+{
+    "managed_image_name_suffix": "azurelinux-3.0-SGX",
+    "os_type": "Linux",
+    "gallery_image_name": "azurelinux-3.0",
+    "vm_size": "Standard_DC4s_v3",
+    "ansible_group": "azl3-agents",
+    "playbook_file_name": "oe-linux-acc-setup-azl3.yml",
+    "image_publisher": "MicrosoftCBLMariner",
+    "image_offer": "cbl-mariner",
+    "image_sku": "cbl-mariner-3-gen2"
+}

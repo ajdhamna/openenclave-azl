@@ -1,0 +1,43 @@
+# Copyright (c) Open Enclave SDK contributors.
+# Licensed under the MIT License.
+
+# ACC agent setup for Azure Linux 3.0.
+# Equivalent of oe-linux-acc-setup.yml but for AZL3:
+#   - Uses tdnf (not apt) for package installation
+#   - Skips SGX driver install (AZL3 kernel has in-kernel SGX)
+#   - Installs SGX packages from Intel's AZL3 RPM local repo
+#   - libsgx-dcap-default-qpl serves as the Azure DCAP client
+
+---
+- hosts: azl3-agents
+  any_errors_fatal: true
+  gather_facts: true
+  become: yes
+  tasks:
+    - name: Install OE build dependencies
+      ansible.builtin.import_role:
+        name: linux/openenclave
+        tasks_from: azurelinux/packages-install.yml
+
+    - name: Include Intel SGX vars for AZL3
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/roles/linux/intel/vars/azurelinux/main.yml"
+
+    - name: Install Intel SGX packages
+      ansible.builtin.import_role:
+        name: linux/intel
+        tasks_from: azurelinux/sgx-packages-install.yml
+
+    - name: Validate SGX driver device files exist
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: "{{ intel_dcap_driver_files }}"
+      register: sgx_device_stat
+      failed_when: not sgx_device_stat.stat.exists
+
+    - name: Validate SGX package files exist
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: "{{ packages_validation_distribution_files }}"
+      register: sgx_lib_stat
+      failed_when: not sgx_lib_stat.stat.exists

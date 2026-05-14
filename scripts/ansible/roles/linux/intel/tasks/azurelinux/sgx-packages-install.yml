@@ -1,0 +1,68 @@
+# Copyright (c) Open Enclave SDK contributors.
+# Licensed under the MIT License.
+
+# Install Intel SGX packages on Azure Linux 3.0 via Intel's RPM local repo.
+# The AZL3 kernel already includes in-kernel SGX support — no driver install.
+
+---
+- name: Intel SGX | Install createrepo_c
+  ansible.builtin.command: tdnf install -y createrepo_c
+  args:
+    creates: /usr/bin/createrepo_c
+
+- name: Intel SGX | Download Intel SGX RPM local repo
+  ansible.builtin.get_url:
+    url: "{{ intel_sgx_rpm_local_repo_url }}"
+    dest: /tmp/sgx_rpm_local_repo.tgz
+    mode: '0644'
+    timeout: 120
+  retries: 3
+  delay: 5
+  register: sgx_repo_download
+  until: sgx_repo_download is succeeded
+
+- name: Intel SGX | Extract RPM local repo
+  ansible.builtin.unarchive:
+    src: /tmp/sgx_rpm_local_repo.tgz
+    dest: /opt
+    remote_src: yes
+
+- name: Intel SGX | Rebuild RPM repo metadata
+  ansible.builtin.command: createrepo_c {{ intel_sgx_rpm_local_repo_path }}
+
+- name: Intel SGX | Add Intel SGX local repo config
+  ansible.builtin.copy:
+    dest: /etc/yum.repos.d/intel-sgx-local.repo
+    content: |
+      [intel-sgx-local]
+      name=Intel SGX Local Repo
+      baseurl=file://{{ intel_sgx_rpm_local_repo_path }}
+      enabled=1
+      gpgcheck=0
+    mode: '0644'
+
+- name: Intel SGX | Install SGX packages
+  ansible.builtin.command: "tdnf install -y {{ intel_sgx_packages | join(' ') }}"
+  retries: 5
+  delay: 10
+  register: sgx_install
+  until: sgx_install.rc == 0
+
+- name: Intel SGX | Create libdcap_quoteprov.so symlink
+  ansible.builtin.file:
+    src: /usr/lib64/libdcap_quoteprov.so.1
+    dest: /usr/lib64/libdcap_quoteprov.so
+    state: link
+    force: yes
+
+- name: Intel SGX | Remove RPM repo tarball
+  ansible.builtin.file:
+    path: /tmp/sgx_rpm_local_repo.tgz
+    state: absent
+
+- name: Intel SGX | Set out-of-proc attestation by default
+  ansible.builtin.lineinfile:
+    path: /etc/environment
+    state: present
+    line: SGX_AESM_ADDR=1
+    create: yes

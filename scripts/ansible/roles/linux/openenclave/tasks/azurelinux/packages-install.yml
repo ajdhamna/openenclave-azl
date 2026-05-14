@@ -1,0 +1,54 @@
+# Copyright (c) Open Enclave SDK contributors.
+# Licensed under the MIT License.
+
+# Install OE build dependencies on Azure Linux 3.0 via tdnf.
+# Mirrors the Ubuntu environment-setup but uses the AZL3 package manager.
+
+---
+- name: OE env | Install build tools and compilers
+  ansible.builtin.command: >
+    tdnf install -y
+    cmake ninja-build clang gcc gcc-c++ make binutils
+    glibc-devel kernel-headers
+  retries: 5
+  delay: 10
+  register: build_tools
+  until: build_tools.rc == 0
+
+- name: OE env | Install development libraries
+  ansible.builtin.command: >
+    tdnf install -y
+    openssl-devel sqlite-devel
+  retries: 5
+  delay: 10
+  register: dev_libs
+  until: dev_libs.rc == 0
+
+- name: OE env | Install build utilities
+  ansible.builtin.command: >
+    tdnf install -y
+    git pkg-config autoconf libtool curl tar unzip gawk patch
+  retries: 5
+  delay: 10
+  register: build_utils
+  until: build_utils.rc == 0
+
+- name: OE env | Install debugging and documentation tools
+  ansible.builtin.command: >
+    tdnf install -y
+    gdb lldb python3-lldb doxygen graphviz iana-etc
+  retries: 5
+  delay: 10
+  register: debug_tools
+  until: debug_tools.rc == 0
+
+- name: OE env | Install CA certificates
+  ansible.builtin.command: tdnf install -y ca-certificates
+  retries: 5
+  delay: 10
+
+- name: OE env | Update CA trust
+  ansible.builtin.command: update-ca-trust
+
+- name: OE env | Allow git to trust any directory (bind-mount safe)
+  ansible.builtin.command: git config --global --add safe.directory '*'
