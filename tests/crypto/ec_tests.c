@@ -867,13 +867,15 @@ static void _test_cert_with_extensions()
 
 static void _test_cert_without_extensions()
 {
-    /* Test a certificate without extensions */
+    /* Test a certificate without extensions.
+     * Note: OpenSSL 3.3+ auto-adds SKI (2.5.29.14) and AKI (2.5.29.35) to
+     * all CA-signed certs. Use a custom OID that will never be auto-added. */
     _test_cert_extensions(
         _CERT_WITHOUT_EXTENSIONS,
         strlen(_CERT_WITHOUT_EXTENSIONS) + 1,
         NULL,
         0,
-        "2.5.29.35");
+        "1.2.3.4.5.6");
 }
 
 static const char _URL[] =
