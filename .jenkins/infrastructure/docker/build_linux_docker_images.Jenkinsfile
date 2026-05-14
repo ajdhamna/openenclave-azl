@@ -149,6 +149,19 @@ pipeline {
                         }
                     }
                 }
+                stage("Azure Linux 3.0") {
+                    steps {
+                        script {
+                            oeazl3 = common.dockerImage("oetools-azl3:${TAG_FULL_IMAGE}", "Dockerfile.azurelinux3-dev")
+                            docker.withRegistry(params.INTERNAL_REPO, params.INTERNAL_REPO_CRED_ID) {
+                                common.exec_with_retry { oeazl3.push() }
+                                if ( params.TAG_LATEST ) {
+                                    common.exec_with_retry { oeazl3.push('latest') }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

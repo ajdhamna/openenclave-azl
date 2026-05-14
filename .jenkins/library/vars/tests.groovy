@@ -1043,25 +1043,12 @@ def simulationContainerTestAzureLinux(String build_type, String lvi_mitigation, 
                                  lvi_mitigation: lvi_mitigation,
                                  lvi_mitigation_skip_tests: skip_lvi_mitigation_tests,
                                  use_snmalloc: use_snmalloc)
-                // Exclude tests known to fail on Azure Linux 3 in simulation mode:
-                //   oegdb-test / oegdb-test-simulation-mode: GDB extension incompatibility
-                //   oelldb-test: LLDB extension incompatibility
-                //   tests/host_verify: requires live SGX quote verification
-                //   tests/resolver: DNS resolution unavailable in container
-                //   libcxxtest std::thread tests: SEGFAULT/bus-error in simulation mode
-                def azl3_exclude = 'oegdb-test|oelldb-test|tests/host_verify|tests/resolver|make_ready_at_thread_exit|task_futures\\.task\\.members_operator|algorithm_lock'
                 def task = """
                            ${helpers.buildCommand(cmakeArgs, 'Ninja')}
-                           ${helpers.TestCommand('', 10, false, azl3_exclude)}
+                           ${helpers.TestCommand()}
                            """
-                // Build the dev environment image from the repo's Dockerfile
-                def image = docker.build("oetools-azl3:${BUILD_NUMBER}", "-f ${WORKSPACE}/Dockerfile.azurelinux3-dev ${WORKSPACE}")
-                withEnv(["OE_SIMULATION=1", "CC=clang", "CXX=clang++"]) {
-                    image.inside(runArgs) {
-                        dir("${WORKSPACE}/build") {
-                            sh task
-                        }
-                    }
+                withEnv(["OE_SIMULATION=1"]) {
+                    common.ContainerRun("oetools-azl3:${DOCKER_TAG}", "clang", task, runArgs)
                 }
             }
         }
