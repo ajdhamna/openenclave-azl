@@ -178,7 +178,7 @@ openssl x509 -req -in intermediate.csr -CA root.ec.cert.pem -CAkey root.ec.key.p
 
 openssl ecparam -name prime256v1 -genkey -noout -out leaf.ec.key.pem
 openssl req -new -key leaf.ec.key.pem -out leaf.csr -subj "${TEST_LEAF_EC_DN}"
-openssl x509 -req -in leaf.csr -CA intermediate.ec.cert.pem -CAkey intermediate.ec.key.pem -CAcreateserial -out leaf.ec.cert.pem -days 3650
+openssl x509 -req -in leaf.csr -CA intermediate.ec.cert.pem -CAkey intermediate.ec.key.pem -CAcreateserial -out leaf.ec.cert.pem -days 3650 -copy_extensions none
 
 openssl ec -in root.ec.key.pem -pubout -out root.ec.public.key.pem
 echo -n "abcdefghijklmnopqrstuvwxyz" > test_sign_alphabet.txt

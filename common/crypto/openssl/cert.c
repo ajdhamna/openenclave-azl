@@ -950,7 +950,7 @@ oe_result_t oe_cert_find_extension(
             OE_RAISE(OE_CRYPTO_ERROR);
 
         /* Get the string name of the OID */
-        if (!OBJ_obj2txt(ext_oid.buf, sizeof(ext_oid.buf), obj, 1))
+        if (OBJ_obj2txt(ext_oid.buf, sizeof(ext_oid.buf), obj, 1) <= 0)
             OE_RAISE(OE_CRYPTO_ERROR);
 
         /* If found then get the data */

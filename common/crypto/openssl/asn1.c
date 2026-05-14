@@ -139,7 +139,7 @@ oe_result_t oe_asn1_get_oid(oe_asn1_t* asn1, oe_oid_string_t* oid)
             OE_RAISE(OE_CRYPTO_ERROR);
 
         /* Convert OID to string format */
-        if (!OBJ_obj2txt(oid->buf, sizeof(oe_oid_string_t), obj, 1))
+        if (OBJ_obj2txt(oid->buf, sizeof(oe_oid_string_t), obj, 1) <= 0)
             OE_RAISE(OE_CRYPTO_ERROR);
 
         asn1->ptr = ptr;
