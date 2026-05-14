@@ -118,23 +118,26 @@ def WaitForAptLock() {
  *       https://github.com/openssl/openssl/issues/18321
  * Note: this currently only supports Linux
  */
-def TestCommand(String regex='', int test_fail_limit = 10, boolean debug = false) {
+def TestCommand(String regex='', int test_fail_limit = 10, boolean debug = false, String exclude_regex='') {
+    def include_arg = ''
     if (regex != '') {
-        regex = '--tests-regex \'${regex}\''
+        include_arg = "--tests-regex '${regex}'"
     }
-    if (debug) {
-        regex += '-VV --debug'
+    def exclude_arg = ''
+    if (exclude_regex != '') {
+        exclude_arg = "--exclude-regex '${exclude_regex}'"
     }
+    def debug_arg = debug ? '-VV --debug' : ''
     return """
         try=0
         max_tries=3
         echo "Running Test Command"
-        if ! ctest ${regex} --output-on-failure --timeout ${globalvars.CTEST_TIMEOUT_SECONDS}; then
+        if ! ctest ${include_arg} ${exclude_arg} ${debug_arg} --output-on-failure --timeout ${globalvars.CTEST_TIMEOUT_SECONDS}; then
             while [ \$try -lt \$max_tries ]; do
                 if [[ \$(wc -l < Testing/Temporary/LastTestsFailed.log) -le ${test_fail_limit} ]]; then
                     echo "Retrying failed tests..."
                     try=\$((\$try+1))
-                    if ctest ${regex} ${debug} --rerun-failed --output-on-failure --timeout ${globalvars.CTEST_TIMEOUT_SECONDS}; then
+                    if ctest ${include_arg} ${exclude_arg} ${debug_arg} --rerun-failed --output-on-failure --timeout ${globalvars.CTEST_TIMEOUT_SECONDS}; then
                         break
                     fi
                 else
